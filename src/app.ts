@@ -14,7 +14,7 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "E-commerce API is running",
+    message: "E-commerce API is running...",
   });
 });
 

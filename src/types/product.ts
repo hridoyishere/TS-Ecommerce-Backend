@@ -1,35 +1,33 @@
-import type { QueryResultRow } from "pg";
 
-export interface Product extends QueryResultRow {
-  id: number;
-  name: string;
-  category: string;
-  price: string;
-  rating: string;
-  reviews: number;
-  description: string | null;
-
-  images: string[];
-  highlights: string[];
-  specs: Record<string, string>;
-
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface CreateProductInput {
+export interface Product {
+  id: string;
+  slug: string;
   name: string;
   category: string;
   price: number;
-
-  rating?: number;
-  reviews?: number;
-  description?: string | null;
-
-  images?: string[];
-  highlights?: string[];
-  specs?: Record<string, string>;
+  rating: number;
+  reviews: number;
+  badge: string | null;
+  image: string;
+  images: string[];
+  description: string | null;
+  details: string[];
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-export type UpdateProductInput =
-  Partial<CreateProductInput>;
+export interface CreateProductInput {
+  slug: string;
+  name: string;
+  category: string;
+  price: number;
+  rating?: number;
+  reviews?: number;
+  badge?: string | null;
+  image: string;
+  images?: string[];
+  description?: string | null;
+  details?: string[];
+}
+
+export type UpdateProductInput = Partial<CreateProductInput>;
