@@ -22,7 +22,7 @@ function mapProduct(row: Product): Product {
 // GET ALL PRODUCTS
 export async function getAllProducts(
   page: number,
-  limit: number = 4
+  limit: number = 2
 ) {
   const offset = (page - 1) * limit;
 
@@ -52,6 +52,22 @@ export async function getAllProducts(
       hasPreviousPage: page > 1,
     },
   };
+}
+
+// GET SINGLE PRODUCT BY SLUG
+export async function getProductBySlug(
+  slug: string
+): Promise<Product | null> {
+  const result = await db.query(
+    `SELECT * FROM products WHERE slug = $1 LIMIT 1`,
+    [slug]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return mapProduct(result.rows[0]);
 }
 
 
@@ -92,4 +108,116 @@ export async function createProduct(
   );
 
   return mapProduct(result.rows[0]);
+}
+
+
+
+interface GetProductsOptions {
+  page: number;
+  limit: number;
+  search: string;
+  category: string;
+  sort: string;
+}
+
+export async function SearchPagegetAllProducts({
+  page,
+  limit,
+  search,
+  category,
+  sort,
+}: GetProductsOptions) {
+  const offset = (page - 1) * limit;
+
+  const conditions: string[] = [];
+  const values: (string | number)[] = [];
+
+  // Search by product name, category or description
+  if (search) {
+    values.push(`%${search}%`);
+    const index = values.length;
+
+    conditions.push(`
+      (
+        name ILIKE $${index}
+        OR category ILIKE $${index}
+        OR description ILIKE $${index}
+      )
+    `);
+  }
+
+  // Filter by category
+  if (category) {
+    values.push(category);
+    conditions.push(`category ILIKE $${values.length}`);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  // Safe sorting options
+  const sortOptions: Record<string, string> = {
+    new: "created_at DESC",
+    popular: "reviews DESC",
+    "price-low": "price ASC",
+    "price-high": "price DESC",
+  };
+
+  const orderBy = sortOptions[sort] ?? sortOptions.new;
+
+  // Fetch products and total count
+  const [productsResult, countResult] = await Promise.all([
+    db.query(
+      `
+        SELECT *
+        FROM products
+        ${whereClause}
+        ORDER BY ${orderBy}
+        LIMIT $${values.length + 1}
+        OFFSET $${values.length + 2}
+      `,
+      [...values, limit, offset],
+    ),
+
+    db.query(
+      `
+        SELECT COUNT(*)
+        FROM products
+        ${whereClause}
+      `,
+      values,
+    ),
+  ]);
+
+  const totalProducts = Number(countResult.rows[0].count);
+  const totalPages = Math.ceil(totalProducts / limit);
+
+  return {
+    products: productsResult.rows.map(mapProduct),
+
+    pagination: {
+      currentPage: page,
+      limit,
+      totalProducts,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  };
+}
+
+// GET PRODUCT CATEGORIES WITH COUNTS
+export async function getProductCategories() {
+  const result = await db.query(`
+    SELECT category AS name, COUNT(*) AS count
+    FROM products
+    GROUP BY category
+    ORDER BY category ASC
+  `);
+
+  return result.rows.map((row) => ({
+    name: row.name,
+    count: Number(row.count),
+  }));
 }
